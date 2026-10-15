@@ -45,6 +45,10 @@ host.stop();
 
 If a user wants to cancel the handskahe procedure, make sure to call the `host.cancel()` method to prevent a deadlock.
 
+### Who can connect
+
+The host listens on the loopback addresses (`127.0.0.1` and, where available, `::1`) only, so other machines cannot reach it. It also answers only requests that are addressed to `localhost`, `127.0.0.1` or `[::1]` and that come either from a browser extension (`chrome-extension://`, `moz-extension://`, `safari-web-extension://` origins) or from a client that sends no `Origin` header. Anything else, including requests from web pages and DNS-rebinding attempts, gets `403 Forbidden` before any pairing starts.
+
 More details available in the [API documentation](API.md)
 
 ### Debugging
