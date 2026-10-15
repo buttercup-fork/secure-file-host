@@ -1,11 +1,13 @@
 # Secure File Host
 > Filesystem host toolkit for Browser-Desktop datasource connections
 
-[![Build Status](https://travis-ci.org/buttercup/secure-file-host.svg?branch=master)](https://travis-ci.org/buttercup/secure-file-host)
+[![Tests](https://github.com/buttercup-fork/secure-file-host/actions/workflows/test.yaml/badge.svg)](https://github.com/buttercup-fork/secure-file-host/actions/workflows/test.yaml)
 
 ## About
 
-This library provides an **event emitter** and an **Express application** for use with the [Buttercup Desktop application](https://github.com/buttercup/buttercup-desktop) - It's designed to provide an interface for [Browser extension](https://github.com/buttercup/buttercup-browser-extension) users to connect on for reading and writing vault files on the local system.
+This is the Codekunde fork of [buttercup/secure-file-host](https://github.com/buttercup/secure-file-host), which was written by Perry Mitchell and is no longer maintained. Node 20 or greater is required.
+
+This library provides an **event emitter** and an **Express application** for use with the [Buttercup Desktop application](https://github.com/buttercup-fork/buttercup-desktop) - It's designed to provide an interface for [Browser extension](https://github.com/buttercup-fork/buttercup-browser-extension) users to connect on for reading and writing vault files on the local system.
 
 Some users may not want to have their vault files synchronised via a cloud storage service, and this tool is designed to allow them to read files on their PC without the need for connecting to external services.
 

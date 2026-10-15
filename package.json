@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/buttercup/secure-file-host.git"
+    "url": "git+https://github.com/buttercup-fork/secure-file-host.git"
   },
   "keywords": [
     "filesystem",
@@ -20,10 +20,13 @@
   ],
   "author": "Perry Mitchell <perry@perrymitchell.net>",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/buttercup/secure-file-host/issues"
+  "engines": {
+    "node": ">=20"
   },
-  "homepage": "https://github.com/buttercup/secure-file-host#readme",
+  "bugs": {
+    "url": "https://github.com/buttercup-fork/secure-file-host/issues"
+  },
+  "homepage": "https://github.com/buttercup-fork/secure-file-host#readme",
   "dependencies": {
     "body-parser": "^1.19.0",
     "eventemitter3": "^4.0.7",
