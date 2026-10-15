@@ -6,8 +6,32 @@ const { generateConnectCode } = require("./code.js");
 const { decryptString, encryptString } = require("./crypto.js");
 const { getDirectoryContents, getFileContents, getHomeDirectory, putFileContents } = require("./filesystem.js");
 
+const ALLOWED_HOSTNAMES = ["localhost", "127.0.0.1", "[::1]"];
+const ALLOWED_ORIGIN = /^(chrome-extension|moz-extension|safari-web-extension):\/\/[^/]+$/;
+const LOOPBACK_ADDRESSES = ["127.0.0.1", "::1"];
 const RESET_DELAY = 15000;
 const SHOW_DURATION = 15000;
+
+/**
+ * Check that a request is addressed to this machine by name, and that it
+ * does not come from a web page. A web page (including one using DNS
+ * rebinding) sends its own site as the Host or as the Origin.
+ * @param {Object} req Express request
+ * @returns {Boolean} True if the request may be served
+ * @private
+ */
+function isRequestAllowed(req) {
+    const hostHeader = req.headers.host;
+    if (typeof hostHeader !== "string") {
+        return false;
+    }
+    const hostname = hostHeader.replace(/:\d+$/, "").toLowerCase();
+    if (ALLOWED_HOSTNAMES.includes(hostname) === false) {
+        return false;
+    }
+    const { origin } = req.headers;
+    return origin === undefined || ALLOWED_ORIGIN.test(origin);
+}
 
 /**
  * Host instance
@@ -48,6 +72,16 @@ function configureHost(host, key) {
         }, RESET_DELAY);
     };
     app.disable("x-powered-by");
+    app.use((req, res, next) => {
+        if (isRequestAllowed(req)) {
+            next();
+            return;
+        }
+        res
+            .set("Content-Type", "text/plain")
+            .status(403)
+            .send("Forbidden");
+    });
     app.use(bodyParser.json());
     app.use((req, res, next) => {
         res.set("Content-Type", "application/json");
@@ -253,9 +287,26 @@ function createHost(port, key) {
     };
     configureHost(host, key);
     if (port) {
-        host.server = app.listen(port);
+        const servers = listenOnLoopback(app, port);
+        host.server = servers[0];
+        host._servers = servers;
     }
     return host;
+}
+
+/**
+ * Listen on the loopback addresses only, so the host is not reachable from
+ * other machines. The IPv4 server is the main one (`host.server`); the IPv6
+ * one is best-effort, as IPv6 may be switched off or its port taken.
+ * @param {Object} app ExpressJS application instance
+ * @param {Number} port The port to listen on
+ * @returns {Array.<Object>} The servers, the IPv4 one first
+ * @private
+ */
+function listenOnLoopback(app, port) {
+    const servers = LOOPBACK_ADDRESSES.map(address => app.listen(port, address));
+    servers.slice(1).forEach(server => server.on("error", () => {}));
+    return servers;
 }
 
 /**
@@ -265,8 +316,8 @@ function createHost(port, key) {
  */
 function stopHost(host) {
     clearTimeout(host._timer);
-    if (host.server) {
-        host.server.close();
+    if (host._servers) {
+        host._servers.forEach(server => server.close());
     }
     delete host.stop;
 }
