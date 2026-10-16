@@ -7,6 +7,8 @@ const { decryptString, encryptString } = require("./crypto.js");
 const { getDirectoryContents, getFileContents, getHomeDirectory, putFileContents } = require("./filesystem.js");
 
 const ALLOWED_HOSTNAMES = ["localhost", "127.0.0.1", "[::1]"];
+// The body carries a whole vault file, encrypted and base64-encoded in JSON
+const BODY_LIMIT = "25mb";
 const ALLOWED_ORIGIN = /^(chrome-extension|moz-extension|safari-web-extension):\/\/[^/]+$/;
 const LOOPBACK_ADDRESSES = ["127.0.0.1", "::1"];
 const RESET_DELAY = 15000;
@@ -102,7 +104,7 @@ function configureHost(host, key) {
             .status(403)
             .send("Forbidden");
     });
-    app.use(bodyParser.json());
+    app.use(bodyParser.json({ limit: BODY_LIMIT }));
     app.use((req, res, next) => {
         res.set("Content-Type", "application/json");
         res.set("Server", `Buttercup/SecureFileHost/${pkgInfo.version}`);
