@@ -96,11 +96,16 @@ describe("API", function() {
         });
 
         it("emits 'connectionFailed' when wrong code entered", done => {
-            host.emitter.once("connectionFailed", done);
             request(host.app)
-                .get("/connect/ABC123")
-                .end((err, res) => {
+                .get("/connect")
+                .end(err => {
                     if (err) return done(err);
+                    host.emitter.once("connectionFailed", done);
+                    request(host.app)
+                        .get("/connect/ABC123")
+                        .end(err => {
+                            if (err) return done(err);
+                        });
                 });
         });
 

@@ -1,3 +1,4 @@
+const { timingSafeEqual } = require("crypto");
 const EventEmitter = require("eventemitter3");
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -7,7 +8,14 @@ const { decryptString, encryptString } = require("./crypto.js");
 const { getDirectoryContents, getFileContents, getHomeDirectory, putFileContents } = require("./filesystem.js");
 
 const ALLOWED_HOSTNAMES = ["localhost", "127.0.0.1", "[::1]"];
+// The body carries a whole vault file, encrypted and base64-encoded in JSON
+const BODY_LIMIT = "25mb";
 const ALLOWED_ORIGIN = /^(chrome-extension|moz-extension|safari-web-extension):\/\/[^/]+$/;
+const ERROR_TEXTS = {
+    400: "Bad Request",
+    413: "Payload Too Large",
+    415: "Unsupported Media Type"
+};
 const LOOPBACK_ADDRESSES = ["127.0.0.1", "::1"];
 const RESET_DELAY = 15000;
 const SHOW_DURATION = 15000;
@@ -30,7 +38,40 @@ function isRequestAllowed(req) {
         return false;
     }
     const { origin } = req.headers;
-    return origin === undefined || ALLOWED_ORIGIN.test(origin);
+    if (origin !== undefined && ALLOWED_ORIGIN.test(origin) === false) {
+        return false;
+    }
+    return isFromWebPage(req) === false;
+}
+
+/**
+ * Compare a connect code with the one entered, without leaking where they differ
+ * @param {String} expected The pending connect code
+ * @param {String} entered The code from the request
+ * @returns {Boolean} True if they are the same
+ * @private
+ */
+function codesMatch(expected, entered) {
+    const a = Buffer.from(expected);
+    const b = Buffer.from(entered);
+    return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
+ * A browser sends no Origin with a web page's no-cors GET (fetch, img, script) or its
+ * link navigation, but it marks them with Sec-Fetch-Mode. Extensions use cors mode,
+ * non-browser clients send no Sec-Fetch headers, and an address-bar visit has
+ * Sec-Fetch-Site "none".
+ * @param {Object} req Express request
+ * @returns {Boolean} True if the request is a no-cors or navigation request from a web page
+ * @private
+ */
+function isFromWebPage(req) {
+    const mode = req.headers["sec-fetch-mode"];
+    if (mode === "no-cors") {
+        return true;
+    }
+    return mode === "navigate" && req.headers["sec-fetch-site"] !== "none";
 }
 
 /**
@@ -82,7 +123,7 @@ function configureHost(host, key) {
             .status(403)
             .send("Forbidden");
     });
-    app.use(bodyParser.json());
+    app.use(bodyParser.json({ limit: BODY_LIMIT }));
     app.use((req, res, next) => {
         res.set("Content-Type", "application/json");
         res.set("Server", `Buttercup/SecureFileHost/${pkgInfo.version}`);
@@ -115,7 +156,7 @@ function configureHost(host, key) {
     app.get("/connect/:code", (req, res) => {
         const { code } = req.params;
         if (connectCode && busy) {
-            if (connectCode !== code) {
+            if (codesMatch(connectCode, code) === false) {
                 timerReset();
                 res
                     .set("Content-Type", "text/plain")
@@ -151,7 +192,7 @@ function configureHost(host, key) {
                 .send("Unavailable");
             return;
         }
-        timerReset();
+        // No pairing is pending, so no guess can succeed: nothing to block
         res
             .set("Content-Type", "text/plain")
             .status(400)
@@ -267,6 +308,17 @@ function configureHost(host, key) {
                     .status(500)
                     .send("Internal Server Error");
             });
+    });
+    // Express would answer with an HTML page that includes the stack trace
+    app.use((err, req, res, next) => {
+        const status = err.status >= 400 && err.status < 500 ? err.status : 500;
+        if (status === 500) {
+            console.error(err);
+        }
+        res
+            .set("Content-Type", "text/plain")
+            .status(status)
+            .send(ERROR_TEXTS[status] || (status === 500 ? "Internal Server Error" : "Bad Request"));
     });
 }
 
