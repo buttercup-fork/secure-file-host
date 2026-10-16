@@ -30,7 +30,27 @@ function isRequestAllowed(req) {
         return false;
     }
     const { origin } = req.headers;
-    return origin === undefined || ALLOWED_ORIGIN.test(origin);
+    if (origin !== undefined && ALLOWED_ORIGIN.test(origin) === false) {
+        return false;
+    }
+    return isFromWebPage(req) === false;
+}
+
+/**
+ * A browser sends no Origin with a web page's no-cors GET (fetch, img, script) or its
+ * link navigation, but it marks them with Sec-Fetch-Mode. Extensions use cors mode,
+ * non-browser clients send no Sec-Fetch headers, and an address-bar visit has
+ * Sec-Fetch-Site "none".
+ * @param {Object} req Express request
+ * @returns {Boolean} True if the request is a no-cors or navigation request from a web page
+ * @private
+ */
+function isFromWebPage(req) {
+    const mode = req.headers["sec-fetch-mode"];
+    if (mode === "no-cors") {
+        return true;
+    }
+    return mode === "navigate" && req.headers["sec-fetch-site"] !== "none";
 }
 
 /**

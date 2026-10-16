@@ -110,6 +110,41 @@ describe("security", function() {
             return request(host.app).get("/").expect(200);
         });
 
+        // A web page's no-cors GET (fetch, <img>, <script>) carries no Origin header. Chromium and
+        // Firefox mark it with Sec-Fetch-Mode: no-cors (checked in browser.spec.js).
+        it("rejects a no-cors request from a web page, which has no Origin", async function() {
+            let codes = 0;
+            host.emitter.on("codeReady", () => (codes += 1));
+            await request(host.app)
+                .get("/connect")
+                .set("Sec-Fetch-Mode", "no-cors")
+                .set("Sec-Fetch-Site", "cross-site")
+                .expect(403);
+            expect(codes).to.equal(0);
+        });
+
+        it("rejects a navigation from a web page, but not one typed in the address bar", async function() {
+            await request(host.app)
+                .get("/")
+                .set("Sec-Fetch-Mode", "navigate")
+                .set("Sec-Fetch-Site", "cross-site")
+                .expect(403);
+            await request(host.app)
+                .get("/")
+                .set("Sec-Fetch-Mode", "navigate")
+                .set("Sec-Fetch-Site", "none")
+                .expect(200);
+        });
+
+        it("serves a cors-mode request from an extension", function() {
+            return request(host.app)
+                .get("/")
+                .set("Origin", "chrome-extension://abcdefghijklmnop")
+                .set("Sec-Fetch-Mode", "cors")
+                .set("Sec-Fetch-Site", "cross-site")
+                .expect(200);
+        });
+
         it("does not start pairing for a rejected request", async function() {
             let codes = 0;
             host.emitter.on("codeReady", () => (codes += 1));
